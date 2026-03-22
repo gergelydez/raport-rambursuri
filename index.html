@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Raport Rambursuri — GLS & Sameday</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1f2d45;
+    --accent: #3b82f6;
+    --accent2: #60a5fa;
+    --green: #10b981;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --gls-orange: #f97316;
+    --sd-purple: #8b5cf6;
+    --sd-purple2: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; z-index: 0; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* HEADER */
+  header { padding: 36px 0 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .logo-pill { display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 46px; height: 46px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: white; letter-spacing: -0.5px; flex-shrink: 0; }
+  .logo-icon.gls { background: linear-gradient(135deg, var(--gls-orange), #fb923c); box-shadow: 0 0 20px rgba(249,115,22,0.25); }
+  .logo-icon.sd { background: linear-gradient(135deg, var(--sd-purple), #7c3aed); box-shadow: 0 0 20px rgba(139,92,246,0.25); }
+  .divider { width: 1px; height: 32px; background: var(--border); }
+  .logo-text h1 { font-size: 19px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-text p { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px; }
+  .header-right { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  .badge { font-family: 'DM Mono', monospace; font-size: 10px; padding: 5px 10px; border-radius: 6px; letter-spacing: 0.05em; }
+  .badge-blue { color: var(--accent2); background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); }
+  .badge-purple { color: var(--sd-purple2); background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2); }
+
+  /* TABS */
+  .tabs { display: flex; gap: 4px; margin: 32px 0 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 5px; width: fit-content; }
+  .tab { padding: 10px 26px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; background: none; color: var(--muted); transition: all 0.2s; }
+  .tab:hover { color: var(--text); }
+  .tab.gls-active { background: linear-gradient(135deg, var(--gls-orange), #ea580c); color: white; box-shadow: 0 4px 14px rgba(249,115,22,0.3); }
+  .tab.sd-active { background: linear-gradient(135deg, var(--sd-purple), #7c3aed); color: white; box-shadow: 0 4px 14px rgba(139,92,246,0.3); }
+
+  /* PANELS */
+  .panel { display: none; padding: 28px 0 60px; }
+  .panel.show { display: block; }
+
+  /* SECTION LABEL */
+  .slabel { font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .slabel::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* DROP ZONE */
+  .drop-zone { border: 2px dashed var(--border); border-radius: 16px; padding: 52px 32px; text-align: center; cursor: pointer; transition: all 0.25s; background: var(--surface); position: relative; overflow: hidden; }
+  .drop-zone::before { content: ''; position: absolute; inset: 0; pointer-events: none; }
+  .gls-drop::before { background: radial-gradient(ellipse at 50% 0%, rgba(249,115,22,0.05) 0%, transparent 70%); }
+  .sd-drop::before { background: radial-gradient(ellipse at 50% 0%, rgba(139,92,246,0.05) 0%, transparent 70%); }
+  .drop-zone:hover, .drop-zone.over { transform: translateY(-2px); box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+  .gls-drop:hover, .gls-drop.over { border-color: var(--gls-orange); }
+  .sd-drop:hover, .sd-drop.over { border-color: var(--sd-purple); }
+  .drop-zone.over { border-style: solid; }
+  .drop-icon { font-size: 38px; margin-bottom: 12px; display: block; }
+  .drop-title { font-size: 17px; font-weight: 700; margin-bottom: 5px; }
+  .drop-sub { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+  .drop-sub em { color: var(--accent2); font-style: normal; }
+
+  /* FILE LIST */
+  .file-list { display: flex; flex-direction: column; gap: 7px; }
+  .file-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 15px; display: flex; align-items: center; gap: 11px; animation: si 0.3s ease; transition: background 0.15s; }
+  @keyframes si { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+  .file-item:hover { background: var(--surface2); }
+  .ficon { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .ficon.gls { background: rgba(249,115,22,0.15); }
+  .ficon.sd { background: rgba(139,92,246,0.15); }
+  .finfo { flex: 1; min-width: 0; }
+  .fname { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fmeta { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .pill { font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 8px; border-radius: 5px; white-space: nowrap; flex-shrink: 0; }
+  .p-blue { color: var(--accent2); background: rgba(59,130,246,0.1); }
+  .p-green { color: var(--green); background: rgba(16,185,129,0.1); }
+  .p-purple { color: var(--sd-purple2); background: rgba(139,92,246,0.1); }
+  .p-orange { color: var(--gls-orange); background: rgba(249,115,22,0.1); }
+  .fremove { width: 25px; height: 25px; background: none; border: 1px solid transparent; border-radius: 5px; color: var(--muted); cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+  .fremove:hover { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: var(--red); }
+
+  /* STATS */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
+  .scard { background: var(--surface); border: 1px solid var(--border); border-radius: 11px; padding: 16px; text-align: center; }
+  .sval { font-size: 24px; font-weight: 800; letter-spacing: -1px; }
+  .sval.g { color: var(--green); } .sval.o { color: var(--gls-orange); } .sval.p { color: var(--sd-purple2); }
+  .slbl { font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-top: 3px; }
+
+  /* TABLE */
+  .preview-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .phead { padding: 13px 17px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface2); }
+  .ptitle { font-size: 13px; font-weight: 700; }
+  .pcount { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+  .tscroll { overflow-x: auto; max-height: 380px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead { position: sticky; top: 0; z-index: 2; }
+  thead th { background: #0f172a; padding: 8px 11px; text-align: left; font-family: 'DM Mono', monospace; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--border); }
+  .drow td { background: rgba(59,130,246,0.07); color: var(--accent2); font-family: 'DM Mono', monospace; font-size: 10px; padding: 6px 11px; font-weight: 600; border-top: 1px solid var(--border); border-bottom: 1px solid rgba(59,130,246,0.12); }
+  .drow.sd td { background: rgba(139,92,246,0.07); color: var(--sd-purple2); border-bottom-color: rgba(139,92,246,0.12); }
+  tbody tr:not(.drow):not(.strow):not(.trow) { border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.12s; }
+  tbody tr:not(.drow):not(.strow):not(.trow):hover { background: rgba(255,255,255,0.03); }
+  tbody td { padding: 7px 11px; vertical-align: middle; }
+  .strow td { background: rgba(16,185,129,0.07); color: var(--green); font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 600; padding: 6px 11px; border-top: 1px solid rgba(16,185,129,0.12); }
+  .trow td { background: rgba(249,115,22,0.08); color: var(--gls-orange); font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; padding: 10px 11px; border-top: 2px solid rgba(249,115,22,0.2); }
+  .trow.sd td { background: rgba(139,92,246,0.08); color: var(--sd-purple2); border-top-color: rgba(139,92,246,0.2); }
+  .rc { font-family: 'DM Mono', monospace; color: var(--muted); font-size: 11px; }
+  .ac { font-family: 'DM Mono', monospace; font-weight: 600; color: var(--green); }
+  .xc { font-size: 11px; color: var(--muted); max-width: 240px; }
+
+  /* BOTTOM BAR */
+  .bbar { margin-top: 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .mgroup { display: flex; align-items: center; gap: 8px; }
+  .mgroup label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; white-space: nowrap; }
+  .mgroup input { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; padding: 7px 11px; outline: none; transition: border-color 0.2s; }
+  .mgroup input:focus { border-color: var(--accent); }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; white-space: nowrap; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed !important; transform: none !important; box-shadow: none !important; }
+  .btn-sec { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+  .btn-sec:hover { border-color: var(--red); color: var(--red); }
+  .btn-gls { background: linear-gradient(135deg, var(--gls-orange), #ea580c); color: white; box-shadow: 0 3px 14px rgba(249,115,22,0.28); }
+  .btn-gls:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 7px 24px rgba(249,115,22,0.38); }
+  .btn-sd { background: linear-gradient(135deg, var(--sd-purple), #7c3aed); color: white; box-shadow: 0 3px 14px rgba(139,92,246,0.28); }
+  .btn-sd:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 7px 24px rgba(139,92,246,0.38); }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 26px; right: 26px; background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 11px 16px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 16px 50px rgba(0,0,0,0.5); transform: translateX(120%); transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1); z-index: 100; max-width: 300px; }
+  .toast.show { transform: translateX(0); }
+  .toast.ok { border-color: rgba(16,185,129,0.4); }
+  .toast.err { border-color: rgba(239,68,68,0.4); }
+  .hidden { display: none !important; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  @media(max-width:640px) { .stats { grid-template-columns: 1fr 1fr; } .bbar { flex-direction: column; align-items: stretch; } .btn { justify-content: center; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo-pill">
+      <div class="logo-icon gls">GLS</div>
+      <div class="divider"></div>
+      <div class="logo-icon sd">SD</div>
+      <div class="logo-text">
+        <h1>Raport Rambursuri</h1>
+        <p>Combinator zilnic → lunar · GLS & Sameday</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="badge badge-blue">GLS · RON</span>
+      <span class="badge badge-purple">Sameday · RON</span>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab gls-active" id="tab-gls" onclick="switchTab('gls')">📦 GLS</button>
+    <button class="tab" id="tab-sd" onclick="switchTab('sd')">🚀 Sameday</button>
+  </div>
+
+  <!-- ══════════ GLS PANEL ══════════ -->
+  <div class="panel show" id="panel-gls">
+    <div class="slabel" style="margin-top:30px">01 — Încarcă fișierele GLS zilnice</div>
+    <div class="drop-zone gls-drop" id="dz-gls">
+      <span class="drop-icon">📂</span>
+      <div class="drop-title">Trage fișierele GLS aici sau dă click</div>
+      <div class="drop-sub">Format: <em>553003585_RON_DDMMYYYY.xlsx</em></div>
+    </div>
+    <input type="file" id="fi-gls" multiple accept=".xlsx" style="display:none"/>
+
+    <div id="gls-files-sec" class="hidden">
+      <div class="slabel" style="margin-top:28px">02 — Fișiere încărcate</div>
+      <div class="file-list" id="gls-list"></div>
+      <div class="stats">
+        <div class="scard"><div class="sval" id="g-sf">0</div><div class="slbl">Zile</div></div>
+        <div class="scard"><div class="sval g" id="g-sr">0</div><div class="slbl">Rambursuri</div></div>
+        <div class="scard"><div class="sval o" id="g-st">0</div><div class="slbl">Total RON</div></div>
+      </div>
+    </div>
+
+    <div id="gls-prev-sec" class="hidden">
+      <div class="slabel" style="margin-top:28px">03 — Previzualizare</div>
+      <div class="preview-wrap">
+        <div class="phead"><span class="ptitle">Rambursuri GLS combinate</span><span class="pcount" id="g-pc"></span></div>
+        <div class="tscroll">
+          <table>
+            <thead><tr><th>Nr. Referință</th><th>Nr. Colet</th><th>Ref. Ramb.</th><th>Livrat la data</th><th>Sumă (RON)</th><th>Adresă</th></tr></thead>
+            <tbody id="g-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="bbar">
+      <div class="mgroup"><label>Luna:</label><input type="month" id="gls-month"/></div>
+      <button class="btn btn-sec" onclick="clearAll('gls')">🗑 Șterge tot</button>
+      <button class="btn btn-gls" id="g-dl" disabled onclick="dlGLS()">⬇ Descarcă Raport GLS</button>
+    </div>
+  </div>
+
+  <!-- ══════════ SAMEDAY PANEL ══════════ -->
+  <div class="panel" id="panel-sd">
+    <div class="slabel" style="margin-top:30px">01 — Încarcă fișierele Sameday</div>
+    <div class="drop-zone sd-drop" id="dz-sd">
+      <span class="drop-icon">📂</span>
+      <div class="drop-title">Trage fișierele Sameday aici sau dă click</div>
+      <div class="drop-sub">Format: <em>YYYY-MM-DD-glamx-ramburs-ron.xlsx</em></div>
+    </div>
+    <input type="file" id="fi-sd" multiple accept=".xlsx" style="display:none"/>
+
+    <div id="sd-files-sec" class="hidden">
+      <div class="slabel" style="margin-top:28px">02 — Fișiere încărcate</div>
+      <div class="file-list" id="sd-list"></div>
+      <div class="stats">
+        <div class="scard"><div class="sval" id="s-sf">0</div><div class="slbl">Fișiere</div></div>
+        <div class="scard"><div class="sval g" id="s-sr">0</div><div class="slbl">Rambursuri</div></div>
+        <div class="scard"><div class="sval p" id="s-st">0</div><div class="slbl">Total RON</div></div>
+      </div>
+    </div>
+
+    <div id="sd-prev-sec" class="hidden">
+      <div class="slabel" style="margin-top:28px">03 — Previzualizare</div>
+      <div class="preview-wrap">
+        <div class="phead"><span class="ptitle">Rambursuri Sameday combinate</span><span class="pcount" id="s-pc"></span></div>
+        <div class="tscroll">
+          <table>
+            <thead><tr><th>AWB</th><th>Destinatar</th><th>Județ</th><th>Oraș</th><th>Ref. Client</th><th>Sumă (RON)</th><th>Data livrare</th><th>Data colectare ramb.</th></tr></thead>
+            <tbody id="s-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="bbar">
+      <div class="mgroup"><label>Luna:</label><input type="month" id="sd-month"/></div>
+      <button class="btn btn-sec" onclick="clearAll('sd')">🗑 Șterge tot</button>
+      <button class="btn btn-sd" id="s-dl" disabled onclick="dlSD()">⬇ Descarcă Raport Sameday</button>
+    </div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const ST = { gls: [], sd: [] };
+const now = new Date();
+const mdef = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+document.getElementById('gls-month').value = mdef;
+document.getElementById('sd-month').value = mdef;
+
+// ── TABS ──
+function switchTab(t) {
+  ['gls','sd'].forEach(id => {
+    document.getElementById(`panel-${id}`).classList.toggle('show', id===t);
+    const tb = document.getElementById(`tab-${id}`);
+    tb.className = 'tab' + (id===t ? (id==='gls' ? ' gls-active' : ' sd-active') : '');
+  });
+}
+
+// ── DROP ZONES ──
+function setupDZ(zid, fid, type) {
+  const z = document.getElementById(zid), f = document.getElementById(fid);
+  z.onclick = () => f.click();
+  z.ondragover = e => { e.preventDefault(); z.classList.add('over'); };
+  z.ondragleave = () => z.classList.remove('over');
+  z.ondrop = e => { e.preventDefault(); z.classList.remove('over'); handleFiles(e.dataTransfer.files, type); };
+  f.onchange = e => { handleFiles(e.target.files, type); f.value=''; };
+}
+setupDZ('dz-gls','fi-gls','gls');
+setupDZ('dz-sd','fi-sd','sd');
+
+// ── PARSE ──
+function pad(n) { return String(n).padStart(2,'0'); }
+function fmtDate(v) {
+  if (!v) return '';
+  if (v instanceof Date) return `${pad(v.getDate())}.${pad(v.getMonth()+1)}.${v.getFullYear()}`;
+  const s = String(v).split('T')[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s.split('-').reverse().join('.');
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(s)) return s;
+  return s;
+}
+
+function parseGLS(buf, name) {
+  const wb = XLSX.read(buf, { type:'array', cellDates:true });
+  const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:null });
+  let dateStr = '';
+  const m = raw[5]?.[0] ? String(raw[5][0]).match(/(\d{2}\.\d{2}\.\d{4})/) : null;
+  if (m) dateStr = m[1];
+  const rows = [];
+  for (let i = 8; i < raw.length-1; i++) {
+    const r = raw[i]; if (!r || (!r[0]&&!r[1])) continue;
+    let livrat = r[3];
+    if (typeof livrat === 'number') { const d=XLSX.SSF.parse_date_code(livrat); if(d) livrat=`${pad(d.d)}.${pad(d.m)}.${d.y}`; }
+    else livrat = fmtDate(livrat);
+    rows.push({ ref:r[0]||'', colet:r[1]||'', ramb:r[2]||'', livrat, suma:parseFloat(r[4])||0, adresa:r[6]||'' });
+  }
+  const sk = dateStr ? dateStr.split('.').reverse().join('') : name;
+  return { name, date:dateStr, rows, sortKey:sk };
+}
+
+function parseSD(buf, name) {
+  const wb = XLSX.read(buf, { type:'array', cellDates:true });
+  const rawC = XLSX.utils.sheet_to_json(wb.Sheets['client']||wb.Sheets[wb.SheetNames[0]], { header:1, defval:null });
+  const cr = rawC[1]||[];
+  const perioada = cr[5]||'';
+  const rawE = XLSX.utils.sheet_to_json(wb.Sheets['expeditii']||wb.Sheets[wb.SheetNames[1]], { header:1, defval:null });
+  const rows = [];
+  for (let i=1; i<rawE.length; i++) {
+    const r=rawE[i]; if(!r||!r[0]) continue;
+    rows.push({ awb:r[0]||'', destinatar:r[1]||'', judet:r[2]||'', oras:r[3]||'', adresa:r[4]||'', refClient:r[6]||'', suma:parseFloat(r[7])||0, data:fmtDate(r[8]), dataCol:fmtDate(r[9]), colete:r[10]||1 });
+  }
+  const fm = name.match(/(\d{4}-\d{2}-\d{2})/);
+  const sk = fm ? fm[1] : name;
+  const date = fm ? fm[1].split('-').reverse().join('.') : perioada;
+  return { name, date, perioada, rows, sortKey:sk };
+}
+
+// ── LOAD ──
+function handleFiles(files, type) {
+  Array.from(files).filter(f=>f.name.endsWith('.xlsx')).forEach(file => {
+    if (ST[type].find(f=>f.name===file.name)) { toast(`⚠ "${file.name}" deja adăugat`,'err'); return; }
+    const r = new FileReader();
+    r.onload = e => {
+      try {
+        const parsed = type==='gls' ? parseGLS(e.target.result, file.name) : parseSD(e.target.result, file.name);
+        ST[type].push(parsed);
+        ST[type].sort((a,b)=>(a.sortKey||a.name).localeCompare(b.sortKey||b.name));
+        render(type);
+        toast(`✓ "${file.name}" adăugat (${parsed.rows.length} rambursuri)`,'ok');
+      } catch(err) { toast(`✗ Eroare la "${file.name}"`,'err'); console.error(err); }
+    };
+    r.readAsArrayBuffer(file);
+  });
+}
+
+// ── RENDER ──
+function render(t) {
+  const d = ST[t], has = d.length>0;
+  document.getElementById(`${t}-files-sec`).classList.toggle('hidden',!has);
+  document.getElementById(`${t}-prev-sec`).classList.toggle('hidden',!has);
+  document.getElementById(t==='gls'?'g-dl':'s-dl').disabled = !has;
+  if (!has) return;
+  t==='gls' ? renderGLS() : renderSD();
+}
+
+function renderGLS() {
+  const d=ST.gls;
+  document.getElementById('gls-list').innerHTML = d.map((f,i)=>`
+    <div class="file-item">
+      <div class="ficon gls">📊</div>
+      <div class="finfo"><div class="fname">${f.name}</div><div class="fmeta">${f.rows.length} rambursuri · ${f.rows.reduce((s,r)=>s+r.suma,0).toLocaleString('ro-RO')} RON</div></div>
+      ${f.date?`<span class="pill p-orange">${f.date}</span>`:''}
+      <span class="pill p-green">${f.rows.length} rânduri</span>
+      <button class="fremove" onclick="rmFile('gls',${i})">✕</button>
+    </div>`).join('');
+  const tr=d.reduce((s,f)=>s+f.rows.length,0), ts=d.reduce((s,f)=>s+f.rows.reduce((ss,r)=>ss+r.suma,0),0);
+  document.getElementById('g-sf').textContent=d.length;
+  document.getElementById('g-sr').textContent=tr;
+  document.getElementById('g-st').textContent=ts.toLocaleString('ro-RO')+' RON';
+  let html='',grand=0;
+  d.forEach(f=>{
+    const dt=f.rows.reduce((s,r)=>s+r.suma,0); grand+=dt;
+    html+=`<tr class="drow"><td colspan="6">📅 Data transferării: ${f.date||f.name}</td></tr>`;
+    f.rows.forEach(r=>{ html+=`<tr><td class="rc">${r.ref}</td><td class="rc">${r.colet}</td><td>${r.ramb}</td><td class="rc">${r.livrat}</td><td class="ac">${r.suma.toLocaleString('ro-RO')} RON</td><td class="xc">${r.adresa}</td></tr>`; });
+    html+=`<tr class="strow"><td colspan="4" style="text-align:right">Total ${f.date}</td><td>${dt.toLocaleString('ro-RO')} RON</td><td></td></tr>`;
+  });
+  html+=`<tr class="trow"><td colspan="4" style="text-align:right">TOTAL GENERAL</td><td>${grand.toLocaleString('ro-RO')} RON</td><td></td></tr>`;
+  document.getElementById('g-tbody').innerHTML=html;
+  document.getElementById('g-pc').textContent=`${tr} rambursuri · ${grand.toLocaleString('ro-RO')} RON`;
+}
+
+function renderSD() {
+  const d=ST.sd;
+  document.getElementById('sd-list').innerHTML = d.map((f,i)=>`
+    <div class="file-item">
+      <div class="ficon sd">📊</div>
+      <div class="finfo"><div class="fname">${f.name}</div><div class="fmeta">${f.rows.length} rambursuri · ${f.rows.reduce((s,r)=>s+r.suma,0).toLocaleString('ro-RO')} RON${f.perioada?' · '+f.perioada:''}</div></div>
+      ${f.date?`<span class="pill p-purple">${f.date}</span>`:''}
+      <span class="pill p-green">${f.rows.length} rânduri</span>
+      <button class="fremove" onclick="rmFile('sd',${i})">✕</button>
+    </div>`).join('');
+  const tr=d.reduce((s,f)=>s+f.rows.length,0), ts=d.reduce((s,f)=>s+f.rows.reduce((ss,r)=>ss+r.suma,0),0);
+  document.getElementById('s-sf').textContent=d.length;
+  document.getElementById('s-sr').textContent=tr;
+  document.getElementById('s-st').textContent=ts.toLocaleString('ro-RO')+' RON';
+  let html='',grand=0;
+  d.forEach(f=>{
+    const dt=f.rows.reduce((s,r)=>s+r.suma,0); grand+=dt;
+    html+=`<tr class="drow sd"><td colspan="8">🚀 Perioadă: ${f.perioada||f.date||f.name}</td></tr>`;
+    f.rows.forEach(r=>{ html+=`<tr><td class="rc">${r.awb}</td><td>${r.destinatar}</td><td class="rc">${r.judet}</td><td class="rc">${r.oras}</td><td class="rc">${r.refClient}</td><td class="ac">${r.suma.toLocaleString('ro-RO')} RON</td><td class="rc">${r.data}</td><td class="rc">${r.dataCol}</td></tr>`; });
+    html+=`<tr class="strow"><td colspan="5" style="text-align:right">Total ${f.date}</td><td>${dt.toLocaleString('ro-RO')} RON</td><td colspan="2"></td></tr>`;
+  });
+  html+=`<tr class="trow sd"><td colspan="5" style="text-align:right">TOTAL GENERAL</td><td>${grand.toLocaleString('ro-RO')} RON</td><td colspan="2"></td></tr>`;
+  document.getElementById('s-tbody').innerHTML=html;
+  document.getElementById('s-pc').textContent=`${tr} rambursuri · ${grand.toLocaleString('ro-RO')} RON`;
+}
+
+function rmFile(t,i) { const n=ST[t][i].name; ST[t].splice(i,1); render(t); toast(`🗑 "${n}" șters`,'ok'); }
+function clearAll(t) { ST[t]=[]; render(t); toast('🗑 Lista curățată','ok'); }
+
+// ── MONTH LABEL ──
+function monthLabel(id) {
+  const [y,m] = document.getElementById(id).value.split('-');
+  return `${['Ianuarie','Februarie','Martie','Aprilie','Mai','Iunie','Iulie','August','Septembrie','Octombrie','Noiembrie','Decembrie'][+m-1]} ${y}`;
+}
+
+// ── DOWNLOAD GLS ──
+function dlGLS() {
+  const d=ST.gls; if(!d.length) return;
+  const ml=monthLabel('gls-month');
+  const wb=XLSX.utils.book_new(), rows=[];
+  rows.push(['GLS General Logistics Systems Romania SRL','','','','','','']);
+  rows.push(['','','','','','','']);
+  rows.push(['Nume Client: GLAMX SRL','','','','','','']);
+  rows.push(['Email: glamxonline@gmail.com','','','','','','']);
+  rows.push(['Cont bancar nr.: RO03REVO0000333625054922','','','','','','']);
+  rows.push([`Raport lunar: ${ml}`,'','','','','','']);
+  rows.push(['','','','','','','']);
+  let grand=0;
+  d.forEach(f=>{
+    rows.push([`Data transferarii banilor: ${f.date}`,'','','','','','']);
+    rows.push(['Număr referinta','Număr colet','Referire la ramb.','Livrat la data','Sumă ramburs','','Postal Address']);
+    f.rows.forEach(r=>rows.push([r.ref,r.colet,r.ramb,r.livrat,r.suma,'RON',r.adresa]));
+    const dt=f.rows.reduce((s,r)=>s+r.suma,0); grand+=dt;
+    rows.push([`Total ${f.date}`,'','','',dt,'RON','']);
+    rows.push(['','','','','','','']);
+  });
+  rows.push(['TOTAL GENERAL','','','',grand,'RON','']);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:20},{wch:16},{wch:16},{wch:14},{wch:16},{wch:6},{wch:55}];
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:6}},{s:{r:2,c:0},e:{r:2,c:6}},{s:{r:3,c:0},e:{r:3,c:6}},{s:{r:4,c:0},e:{r:4,c:6}},{s:{r:5,c:0},e:{r:5,c:6}}];
+  XLSX.utils.book_append_sheet(wb,ws,'Raport Lunar GLS');
+  XLSX.writeFile(wb,`GLS_Ramburse_${ml.replace(' ','_')}.xlsx`);
+  toast(`✓ Raport GLS descărcat!`,'ok');
+}
+
+// ── DOWNLOAD SAMEDAY ──
+function dlSD() {
+  const d=ST.sd; if(!d.length) return;
+  const ml=monthLabel('sd-month');
+  const wb=XLSX.utils.book_new(), rows=[];
+  rows.push(['Sameday Courier — Raport Rambursuri','','','','','','','','','','']);
+  rows.push(['','','','','','','','','','','']);
+  rows.push(['Nume Client: GLAMX SRL','','','','','','','','','','']);
+  rows.push(['Email: glamxonline@gmail.com','','','','','','','','','','']);
+  rows.push(['IBAN: RO03REVO0000333625054922','','','','','','','','','','']);
+  rows.push([`Raport lunar: ${ml}`,'','','','','','','','','','']);
+  rows.push(['','','','','','','','','','','']);
+  let grand=0;
+  d.forEach(f=>{
+    rows.push([`Perioadă: ${f.perioada||f.date}`,'','','','','','','','','','']);
+    rows.push(['AWB','Nume destinatar','Județ','Oraș','Adresă destinatar','Referință client','Sumă ramburs (RON)','Data livrare','Data colectare ramb.','Nr. colete','']);
+    f.rows.forEach(r=>rows.push([r.awb,r.destinatar,r.judet,r.oras,r.adresa,r.refClient,r.suma,r.data,r.dataCol,r.colete,'']));
+    const dt=f.rows.reduce((s,r)=>s+r.suma,0); grand+=dt;
+    rows.push(['','','','','','Total:',dt,'','','','']);
+    rows.push(['','','','','','','','','','','']);
+  });
+  rows.push(['','','','','','TOTAL GENERAL:',grand,'','','','']);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:18},{wch:22},{wch:14},{wch:14},{wch:30},{wch:22},{wch:18},{wch:14},{wch:20},{wch:10},{wch:4}];
+  XLSX.utils.book_append_sheet(wb,ws,'Raport Lunar Sameday');
+  XLSX.writeFile(wb,`Sameday_Ramburse_${ml.replace(' ','_')}.xlsx`);
+  toast(`✓ Raport Sameday descărcat!`,'ok');
+}
+
+// ── TOAST ──
+function toast(msg,type='ok') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${type} show`;
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+</script>
+</body>
+</html>
